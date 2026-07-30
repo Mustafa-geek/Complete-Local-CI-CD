@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Employee Form</title>
+</head>
+
+<body>
+
+    <h1>Employee Registration</h1>
+
+    <form id="employeeForm">
+
+        <label>Name:</label>
+        <input type="text" id="name" required>
+
+        <br><br>
+
+        <label>Email:</label>
+        <input type="email" id="email" required>
+
+        <br><br>
+
+        <label>Designation:</label>
+        <input type="text" id="designation" required>
+
+        <br><br>
+
+        <button type="submit">
+            Submit
+        </button>
+
+    </form>
+
+    <h2 id="result"></h2>
+
+    <script>
+
+        document.getElementById("employeeForm")
+            .addEventListener("submit", async function(event) {
+
+                event.preventDefault();
+
+                const data = {
+                    name: document.getElementById("name").value,
+                    email: document.getElementById("email").value,
+                    designation: document.getElementById("designation").value
+                };
+
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.text();
+
+                document.getElementById("result").innerHTML = result;
+            });
+
+    </script>
+
+</body>
+
+</html>
