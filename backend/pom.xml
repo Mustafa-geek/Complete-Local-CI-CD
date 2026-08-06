@@ -10,9 +10,13 @@
     <version>1.0</version>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>
+            UTF-8
+        </project.build.sourceEncoding>
+
+        <junit.version>5.14.3</junit.version>
+        <jacoco.version>0.8.13</jacoco.version>
     </properties>
 
     <dependencies>
@@ -29,14 +33,59 @@
             <version>2.11.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
+
         <plugins>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
+                <artifactId>
+                    maven-surefire-plugin
+                </artifactId>
+                <version>3.5.5</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>
+                    jacoco-maven-plugin
+                </artifactId>
+                <version>${jacoco.version}</version>
+
+                <executions>
+
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+
+                    <execution>
+                        <id>generate-coverage-report</id>
+                        <phase>verify</phase>
+
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>
+                    maven-jar-plugin
+                </artifactId>
                 <version>3.3.0</version>
 
                 <configuration>
@@ -50,7 +99,9 @@
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
+                <artifactId>
+                    maven-shade-plugin
+                </artifactId>
                 <version>3.5.0</version>
 
                 <executions>
@@ -65,6 +116,7 @@
             </plugin>
 
         </plugins>
+
     </build>
 
 </project>
