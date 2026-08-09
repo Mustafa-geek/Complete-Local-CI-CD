@@ -1,3 +1,4 @@
+#Used for testing locally
 services:
   database:
     image: mysql:8.0
