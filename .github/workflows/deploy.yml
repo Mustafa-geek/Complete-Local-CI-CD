@@ -1,11 +1,6 @@
 name: Deploy to ECS
 
 on:
-  workflow_run:
-    workflows:
-      - CI Pipeline
-    types:
-      - completed
   workflow_dispatch:
     inputs:
       push_only:
