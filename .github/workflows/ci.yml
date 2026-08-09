@@ -44,9 +44,6 @@ jobs:
 
       - name: Run SonarQube analysis and enforce quality gate
         uses: SonarSource/sonarqube-scan-action@v8.1.0
-        env:
-          SONAR_TOKEN: ${{ steps.sonarqube.outputs.token }}
-          SONAR_HOST_URL: ${{ steps.sonarqube.outputs.host_url }}
 
       - name: Upload unit-test and coverage reports
         if: always()
