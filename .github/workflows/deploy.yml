@@ -1,0 +1,96 @@
+name: Deploy to ECS
+
+on:
+  workflow_run:
+    workflows:
+      - CI Pipeline
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      push_only:
+        description: "Build and push ECR images without updating ECS services (used for first deployment)"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build, Push and Deploy
+    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        vars.AWS_ROLE_ARN != '' &&
+        (github.event_name == 'workflow_dispatch' ||
+          (vars.ENABLE_AWS_DEPLOYMENT == 'true' &&
+           github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.head_branch == 'main'))
+      }}
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      PROJECT_NAME: ${{ vars.PROJECT_NAME || 'three-tier' }}
+
+    steps:
+      - name: Resolve commit SHA
+        id: revision
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.revision.outputs.sha }}
+
+      - name: Configure AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push versioned Docker images
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ steps.revision.outputs.sha }}
+        run: |
+          FRONTEND_IMAGE="${REGISTRY}/${PROJECT_NAME}-frontend:${IMAGE_TAG}"
+          BACKEND_IMAGE="${REGISTRY}/${PROJECT_NAME}-backend:${IMAGE_TAG}"
+
+          docker build -t "${FRONTEND_IMAGE}" ./frontend
+          docker build -t "${BACKEND_IMAGE}" ./backend
+
+          docker push "${FRONTEND_IMAGE}"
+          docker push "${BACKEND_IMAGE}"
+
+          echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}" >> "$GITHUB_ENV"
+          echo "BACKEND_IMAGE=${BACKEND_IMAGE}" >> "$GITHUB_ENV"
+
+      - name: Record published image tag
+        run: |
+          echo "### Published ECR images" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Image tag: `%s`\n' '${{ steps.revision.outputs.sha }}' >> "$GITHUB_STEP_SUMMARY"
+          printf 'Frontend: `%s`\n' "$FRONTEND_IMAGE" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Backend: `%s`\n' "$BACKEND_IMAGE" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Register task revisions and update ECS services
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.push_only }}
+        env:
+          ECS_CLUSTER: ${{ env.PROJECT_NAME }}-cluster
+          FRONTEND_SERVICE: ${{ env.PROJECT_NAME }}-frontend
+          BACKEND_SERVICE: ${{ env.PROJECT_NAME }}-backend
+          FRONTEND_TASK_FAMILY: ${{ env.PROJECT_NAME }}-frontend
+          BACKEND_TASK_FAMILY: ${{ env.PROJECT_NAME }}-backend
+        run: bash .github/scripts/deploy-ecs.sh

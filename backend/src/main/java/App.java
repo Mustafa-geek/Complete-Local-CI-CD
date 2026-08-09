@@ -28,16 +28,14 @@ public class App {
     private static final String DB_NAME =
             System.getenv().getOrDefault("DB_NAME", "mydb");
 
-    private static final String DB_USER =
-            System.getenv().getOrDefault("DB_USER", "appuser");
+    private static final String DB_USER = getRequiredEnvironmentVariable("DB_USER");
 
-    private static final String DB_PASSWORD =
-            System.getenv().getOrDefault("DB_PASSWORD", "apppassword");
+    private static final String DB_PASSWORD = getRequiredEnvironmentVariable("DB_PASSWORD");
 
     private static final String DB_OPTIONS =
             System.getenv().getOrDefault(
                     "DB_OPTIONS",
-                    "?allowPublicKeyRetrieval=true&useSSL=false"
+                    "?sslMode=REQUIRED"
             );
 
     private static final String DB_URL = String.format(
@@ -76,9 +74,19 @@ public class App {
 
         server.start();
 
-        System.out.println(
-                "Backend running on port 8080"
-        );
+        System.out.println("Backend running on port 8080");
+    }
+
+    private static String getRequiredEnvironmentVariable(String name) {
+        String value = System.getenv(name);
+
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException(
+                    "Required environment variable is missing: " + name
+            );
+        }
+
+        return value;
     }
 
     private static Connection getConnection() throws SQLException {
@@ -98,10 +106,7 @@ public class App {
 
             try (Connection ignored = getConnection()) {
 
-                System.out.println(
-                        "Successfully connected to MySQL"
-                );
-
+                System.out.println("Successfully connected to MySQL");
                 return;
 
             } catch (SQLException exception) {
@@ -140,9 +145,7 @@ public class App {
             statement.execute(createTable);
         }
 
-        System.out.println(
-                "Employees table is ready"
-        );
+        System.out.println("Employees table is ready");
     }
 
     private static void handleHealthRequest(
@@ -205,106 +208,94 @@ public class App {
         }
     }
 
-private static void handleEmployeeRequest(
-        HttpExchange exchange
-) throws IOException {
+    private static void handleEmployeeRequest(
+            HttpExchange exchange
+    ) throws IOException {
 
-    if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
 
-        exchange.getResponseHeaders().set(
-                "Allow",
-                "POST"
-        );
-
-        sendJsonResponse(
-                exchange,
-                405,
-                Map.of("message", "Method not allowed")
-        );
-
-        return;
-    }
-
-    try {
-
-        String requestBody = new String(
-                exchange.getRequestBody().readAllBytes(),
-                StandardCharsets.UTF_8
-        );
-
-        Employee employee = GSON.fromJson(
-                requestBody,
-                Employee.class
-        );
-
-        EmployeeValidator.validate(employee);
-
-        String insertEmployee = """
-                INSERT INTO employees(name, email, designation)
-                VALUES (?, ?, ?)
-                """;
-
-        try (
-                Connection connection = getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(insertEmployee)
-        ) {
-
-            statement.setString(
-                    1,
-                    employee.getName()
+            exchange.getResponseHeaders().set(
+                    "Allow",
+                    "POST"
             );
 
-            statement.setString(
-                    2,
-                    employee.getEmail()
+            sendJsonResponse(
+                    exchange,
+                    405,
+                    Map.of("message", "Method not allowed")
             );
 
-            statement.setString(
-                    3,
-                    employee.getDesignation()
-            );
-
-            statement.executeUpdate();
+            return;
         }
 
-        sendJsonResponse(
-                exchange,
-                201,
-                Map.of(
-                        "message",
-                        "Employee saved successfully"
-                )
-        );
+        try {
 
-    } catch (
-            JsonSyntaxException |
-            IllegalArgumentException exception
-    ) {
+            String requestBody = new String(
+                    exchange.getRequestBody().readAllBytes(),
+                    StandardCharsets.UTF_8
+            );
 
-        sendJsonResponse(
-                exchange,
-                400,
-                Map.of(
-                        "message",
-                        exception.getMessage()
-                )
-        );
+            Employee employee = GSON.fromJson(
+                    requestBody,
+                    Employee.class
+            );
 
-    } catch (SQLException exception) {
+            EmployeeValidator.validate(employee);
 
-        exception.printStackTrace();
+            String insertEmployee = """
+                    INSERT INTO employees(name, email, designation)
+                    VALUES (?, ?, ?)
+                    """;
 
-        sendJsonResponse(
-                exchange,
-                500,
-                Map.of(
-                        "message",
-                        "Unable to save employee"
-                )
-        );
+            try (
+                    Connection connection = getConnection();
+                    PreparedStatement statement =
+                            connection.prepareStatement(insertEmployee)
+            ) {
+
+                statement.setString(1, employee.getName());
+                statement.setString(2, employee.getEmail());
+                statement.setString(3, employee.getDesignation());
+                statement.executeUpdate();
+            }
+
+            sendJsonResponse(
+                    exchange,
+                    201,
+                    Map.of(
+                            "message",
+                            "Employee saved successfully"
+                    )
+            );
+
+        } catch (
+                JsonSyntaxException |
+                IllegalArgumentException exception
+        ) {
+
+            sendJsonResponse(
+                    exchange,
+                    400,
+                    Map.of(
+                            "message",
+                            exception.getMessage()
+                    )
+            );
+
+        } catch (SQLException exception) {
+
+            exception.printStackTrace();
+
+            sendJsonResponse(
+                    exchange,
+                    500,
+                    Map.of(
+                            "message",
+                            "Unable to save employee"
+                    )
+            );
+        }
     }
-}
 
     private static void sendJsonResponse(
             HttpExchange exchange,
@@ -327,8 +318,7 @@ private static void handleEmployeeRequest(
         );
 
         try (
-                OutputStream outputStream =
-                        exchange.getResponseBody()
+                OutputStream outputStream = exchange.getResponseBody()
         ) {
 
             outputStream.write(responseBytes);

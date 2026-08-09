@@ -1,21 +1,16 @@
 services:
-
   database:
     image: mysql:8.0
     container_name: three-tier-database
-
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: mydb
-      MYSQL_USER: appuser
-      MYSQL_PASSWORD: apppassword
-
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-mydb}
+      MYSQL_USER: ${MYSQL_USER:-appuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
     ports:
-      - "3333:3306"
-
+      - "${MYSQL_HOST_PORT:-3333}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-
     healthcheck:
       test:
         [
@@ -26,59 +21,46 @@ services:
       timeout: 5s
       retries: 20
       start_period: 10s
-
     networks:
       - three-tier-network
-
 
   backend:
     build:
       context: ./backend
-
     image: three-tier-backend:local
     container_name: three-tier-backend
-
     environment:
       DB_HOST: database
       DB_PORT: "3306"
-      DB_NAME: mydb
-      DB_USER: appuser
-      DB_PASSWORD: apppassword
-      DB_OPTIONS: "?allowPublicKeyRetrieval=true&useSSL=false"
-
+      DB_NAME: ${MYSQL_DATABASE:-mydb}
+      DB_USER: ${MYSQL_USER:-appuser}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      DB_OPTIONS: "?sslMode=DISABLED&allowPublicKeyRetrieval=true"
     ports:
-      - "8080:8080"
-
+      - "${BACKEND_HOST_PORT:-8080}:8080"
     depends_on:
       database:
         condition: service_healthy
-
     restart: on-failure
-
     networks:
       - three-tier-network
-
 
   frontend:
     build:
       context: ./frontend
-
     image: three-tier-frontend:local
     container_name: three-tier-frontend
-
     ports:
-      - "8081:80"
-
+      - "${FRONTEND_HOST_PORT:-8081}:80"
+    volumes:
+      - ./frontend/nginx.local.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - backend
-
     networks:
       - three-tier-network
 
-
 volumes:
   mysql-data:
-
 
 networks:
   three-tier-network:
