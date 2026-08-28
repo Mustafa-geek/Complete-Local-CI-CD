@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: three-tier
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+        app.kubernetes.io/name: backend
+        app.kubernetes.io/part-of: three-tier
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: {{ .Values.backend.env.DB_HOST | quote }}
+            - name: DB_PORT
+              value: {{ .Values.backend.env.DB_PORT | quote }}
+            - name: DB_NAME
+              value: {{ .Values.backend.env.DB_NAME | quote }}
+            - name: DB_OPTIONS
+              value: {{ .Values.backend.env.DB_OPTIONS | quote }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: password
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}

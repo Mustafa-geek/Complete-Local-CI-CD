@@ -1,0 +1,13 @@
+apiVersion: v2
+name: three-tier
+description: A three-tier application (frontend, backend, MySQL) for local Kind + ArgoCD
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - three-tier
+  - java
+  - nginx
+  - mysql
+maintainers:
+  - name: khazimustafa

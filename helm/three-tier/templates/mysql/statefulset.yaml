@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/part-of: three-tier
+spec:
+  serviceName: mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/part-of: three-tier
+    spec:
+      containers:
+        - name: mysql
+          image: "{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}"
+          imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
+          ports:
+            - name: mysql
+              containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: root-password
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: database
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: username
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: password
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+          livenessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - "-h"
+                - localhost
+                - "-u"
+                - root
+                - "-p$(MYSQL_ROOT_PASSWORD)"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - "-h"
+                - localhost
+                - "-u"
+                - root
+                - "-p$(MYSQL_ROOT_PASSWORD)"
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.mysql.resources | nindent 12 }}
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: mysql-pvc

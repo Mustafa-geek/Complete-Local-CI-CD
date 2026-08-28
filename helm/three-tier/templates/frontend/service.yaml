@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: three-tier
+spec:
+  selector:
+    app: frontend
+  type: {{ .Values.frontend.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.frontend.service.port }}
+      targetPort: 80
+      nodePort: {{ .Values.frontend.service.nodePort }}

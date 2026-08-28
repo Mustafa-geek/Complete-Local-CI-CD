@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: three-tier
+  namespace: argocd
+  # Automatically delete all K8s resources when the ArgoCD Application is deleted
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  # ── Source: your GitHub repo + Helm chart path ──────────────────────────────
+  source:
+    repoURL: https://github.com/Mustafa-geek/Complete-Local-CI-CD-.git
+    targetRevision: main
+    path: helm/three-tier
+
+    # Helm-specific settings
+    helm:
+      valueFiles:
+        - values.yaml
+
+  # ── Destination: local Kind cluster ─────────────────────────────────────────
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: three-tier
+
+  # ── Sync policy: auto-sync when Git changes ──────────────────────────────────
+  syncPolicy:
+    automated:
+      prune: true       # delete K8s resources that are removed from Git
+      selfHeal: true    # re-sync if someone manually changes cluster state
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 1m

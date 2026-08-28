@@ -1,0 +1,86 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# values.yaml  –  Three-Tier Helm Chart
+#
+# The CI pipeline automatically updates `frontend.image.tag` and
+# `backend.image.tag` after every successful build. ArgoCD detects
+# the Git change and rolls out the new pods.
+# ─────────────────────────────────────────────────────────────────────────────
+
+namespace: three-tier
+
+# ── Frontend (nginx) ─────────────────────────────────────────────────────────
+frontend:
+  replicaCount: 1
+
+  image:
+    repository: khazimustafa/three-tier-frontend
+    tag: latest          # ← CI overwrites this field on every push
+    pullPolicy: Always
+
+  service:
+    type: NodePort
+    port: 80
+    nodePort: 30080      # access at http://localhost:30080
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+
+# ── Backend (Java HTTP server) ────────────────────────────────────────────────
+backend:
+  replicaCount: 1
+
+  image:
+    repository: khazimustafa/three-tier-backend
+    tag: latest          # ← CI overwrites this field on every push
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+  # Environment variables passed to the backend container
+  env:
+    DB_HOST: mysql        # K8s service name of MySQL
+    DB_PORT: "3306"
+    DB_NAME: mydb
+    DB_OPTIONS: "?sslMode=DISABLED&allowPublicKeyRetrieval=true"
+    # DB_USER and DB_PASSWORD are injected from the mysql-secret (see below)
+
+# ── MySQL (StatefulSet) ───────────────────────────────────────────────────────
+mysql:
+  image:
+    repository: mysql
+    tag: "8.0"
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 3306
+
+  # Credentials are stored as a Kubernetes Secret created manually (not via Git).
+  # See runbook.md Phase 3.5 for the kubectl command to create the secret.
+  # The secret name "mysql-secret" is referenced in templates/mysql/statefulset.yaml.
+
+  storage:
+    size: 1Gi
+    storageClass: "standard"   # Kind's default storage class
+
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"

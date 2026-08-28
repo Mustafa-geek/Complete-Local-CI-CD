@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/part-of: three-tier
+spec:
+  selector:
+    app: mysql
+  ports:
+    - name: mysql
+      port: {{ .Values.mysql.service.port }}
+      targetPort: 3306
+  clusterIP: None   # Headless service — required for StatefulSets
